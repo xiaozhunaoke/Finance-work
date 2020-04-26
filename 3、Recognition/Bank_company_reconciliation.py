@@ -2,13 +2,15 @@ import pandas as pd
 import os
 """功能：银行数据和出纳数据进行核对：
 1、先取多家银行的可以数据取出来，关键行：银行账号，日期，借方金额，贷方金额，每家银行的格式不一致，则每家银行单独读取
-
+2、银行数据较多，单独放在‘银行流水’文件夹名中
+3、读取出纳数据
+4、整理后的银行数据与出纳数据进行核对，逐项删除相同项
 """
 
 #读取银行数据，因为每家银行的格式不一致，每家银行的读取方式就写一个函数
 def read_banks():
     xlfs=read_xlfs()
-    bank_data=pd.DataFrame(columns=['账号','交易日期','借方','贷方'],dtype=object)
+    bank_data=pd.DataFrame(columns=['账号','交易日期','借方','贷方'],dtype=object)#新建一个空的数据格式
     for i in range(len(xlfs)):
         if ('中国银行' in xlfs[i]) or ('中行' in xlfs[i]):
             data=read_ZGYH(xlfs[i])
@@ -40,7 +42,7 @@ def read_banks():
         elif ('广发' in xlfs[i]):
             data=read_GFYH(xlfs[i])
             bank_data=pd.concat([bank_data,data])
-    bank_data['账号']=bank_data['账号'].astype(str)
+    bank_data['账号']=bank_data['账号'].astype(str)#整理数据，相同的格式
     bank_data['交易日期']=bank_data['交易日期'].astype(str)
     bank_data['借方']=bank_data['借方'].astype(str).str.replace(',','')
     bank_data['借方']=bank_data['借方'].str.replace('-','0').astype(float)
@@ -50,7 +52,7 @@ def read_banks():
     bank_data.to_excel('银行数据.xlsx')
     return bank_data
 
-#银行流水存放的路径，获得所有的文件夹名称
+#银行流水文件夹存放的路径，获得所有的文件夹名称
 def read_xlfs():
     path=os.path.abspath('.')+'\\银行流水'
     xlfs = [x for x in os.listdir(path)]
@@ -58,13 +60,13 @@ def read_xlfs():
     xlfs=path+'\\'+xlfs
     return xlfs
 
-def read_cashier():
+def read_cashier():#读取出纳账，对需要几项进行筛选
     cashier=pd.read_excel('出纳账.xls')
     index_name=cashier.iloc[6]
     cashier=cashier.rename(columns=index_name)
     cashier=cashier[7:]
     cashier=cashier.iloc[:,[0,4,10,11]].rename(columns={'资金帐户':'账号','单据日期':'交易日期','本币':'借方','支出':'贷方'})
-    cashier=cashier[~ cashier['账号'].str.contains("小计|累计|单位",na=False)]
+    cashier=cashier[~ cashier['账号'].str.contains("小计|累计|单位",na=False)]#删除包含关键词‘小计、累计、单位’的行
     cashier=cashier[:-1]
     cashier['交易日期']=cashier['交易日期'].str.replace('-','')
     #cashier.set_index(['账号'],inplace=True)
